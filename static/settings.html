@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Discord RPC Plugin Settings</h1>
+  <form id="cfg">
+    Client ID: <input name="clientId" value="{clientId}"><br>
+    Mode: 
+      <select name="mode">
+        <option value="local">Local</option>
+        <option value="remote">Remote</option>
+      </select><br>
+    Agent URL: <input name="agentUrl" value="{agentUrl}"><br>
+    <button type="submit">Save</button>
+  </form>
+  <script>
+    document.getElementById('cfg').onsubmit = async e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      await fetch('/api/plugins/discordRPC/settings', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+      });
+      alert('Saved – restart plugin to apply');
+    };
+  </script>
+</body>
+</html>

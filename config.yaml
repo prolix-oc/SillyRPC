@@ -1,0 +1,5 @@
+enableServerPlugins: true
+discordRPC:
+  clientId: "1362144353493057737"
+  mode: "remote"      # or "remote"
+  agentUrl: "ws://172.20.10.210:6472"  # only for remote mode
