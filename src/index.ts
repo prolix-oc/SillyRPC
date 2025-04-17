@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import WebSocket from 'ws';
 import RPC from 'discord-rpc';
+import fetch from 'node-fetch';
+import FormData from 'form-data';
 
 interface PluginInfo {
   id: string;
@@ -82,13 +84,53 @@ function sendActivity(activity: Record<string, any>): void {
 }
 
 export async function init(router: Router): Promise<void> {
-  const jsonParser = bodyParser.json();
-
-  console.log(chalk.green(MODULE_NAME), 'Plugin init, loaded config:', config);
 
   // Initialize transport based on mode
   if (config.mode === 'local') initLocalRpc(config.clientId);
   else initRemoteWs(config.agentUrl);
+  const jsonParser = bodyParser.json();
+
+  console.log(chalk.green(MODULE_NAME), 'Plugin init, loaded config:', config);
+
+  router.post('/upload-avatar', async (req, res) => {
+    try {
+      const { avatarFile } = req.body as { avatarFile?: string };
+      if (!avatarFile) {
+        return res.status(400).json({ error: 'Missing avatarFile' });
+      }
+
+      const thumbnailUrl = `${req.protocol}://${req.get('host')}/thumbnail?type=avatar&file=${encodeURIComponent(avatarFile)}`;
+
+      const thumbRes = await fetch(thumbnailUrl);
+      if (!thumbRes.ok) {
+        return res
+          .status(502)
+          .json({ error: `Failed to fetch thumbnail: ${thumbRes.status}` });
+      }
+      const arrayBuffer = await thumbRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const form = new FormData();
+      form.append('reqtype', 'fileupload');
+      form.append('fileToUpload', buffer, { filename: 'avatar.png' });
+
+      const catboxRes = await fetch('https://catbox.moe/user/api.php', {
+        method: 'POST',
+        headers: form.getHeaders(),
+        body: form as any,
+      });
+      const text = await catboxRes.text();
+      if (!catboxRes.ok) {
+        console.error('[SillyRPC] Catbox error:', text);
+        return res.status(502).json({ error: 'Catbox upload failed', detail: text });
+      }
+
+      return res.json({ url: text.trim() });
+    } catch (err) {
+      console.error('[SillyRPC] /upload-avatar error', err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
 
   // Health check
   router.post('/probe', (_req, res) => res.sendStatus(204));
